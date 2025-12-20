@@ -113,60 +113,85 @@
                             <th class="ps-4">File Name</th>
                             <th>Size</th>
                             <th>Type</th>
+                            <th>Link</th> 
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($upload->files as $file)
-                            <tr>
-                                <td class="ps-4">
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="flex-shrink-0">
-                                            @if(str($file->mime_type)->contains('image/'))
-                                                <i class="fas fa-image text-primary fa-lg"></i>
-                                            @elseif(str($file->mime_type)->contains('pdf'))
-                                                <i class="fas fa-file-pdf text-danger fa-lg"></i>
-                                            @elseif(str($file->mime_type)->contains('video'))
-                                                <i class="fas fa-video text-info fa-lg"></i>
-                                            @else
-                                                <i class="fas fa-file text-secondary fa-lg"></i>
-                                            @endif
-                                        </div>
-                                        <div>
-                                            <div class="fw-medium text-dark">
-                                                {{ Str::limit($file->original_name, 50) }}
-                                            </div>
-                                            <small class="text-muted">
-                                                {{ $file->original_name }}
-                                            </small>
-                                        </div>
+                        @php
+                            $shareUrl = Storage::disk('s3')->temporaryUrl(
+                                $file->path,
+                                now()->addDays(7)
+                            );
+                        @endphp
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        @if(str($file->mime_type)->contains('image/'))
+                                            <i class="fas fa-image text-primary fa-lg"></i>
+                                        @elseif(str($file->mime_type)->contains('pdf'))
+                                            <i class="fas fa-file-pdf text-danger fa-lg"></i>
+                                        @elseif(str($file->mime_type)->contains('video'))
+                                            <i class="fas fa-video text-info fa-lg"></i>
+                                        @else
+                                            <i class="fas fa-file text-secondary fa-lg"></i>
+                                        @endif
                                     </div>
-                                </td>
-                                <td>
-                                    <span class="fw-medium">
-                                        {{ \Illuminate\Support\Facades\Storage::disk('s3')->size($file->path) 
-                                            ? round(\Illuminate\Support\Facades\Storage::disk('s3')->size($file->path) / 1024, 2) . ' KB'
-                                            : number_format($file->size / 1024, 2) . ' KB' }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <code class="small bg-light px-2 py-1 rounded">{{ Str::upper(Str::afterLast($file->mime_type, '/')) }}</code>
-                                </td>
-                                <td class="text-center">
-                                    <a href="{{ route('admin.files.download', $file) }}"
-                                       class="btn btn-sm btn-outline-success border-2"
-                                       title="Download {{ $file->original_name }}">
-                                        Download
+                                    <div>
+                                        <div class="fw-medium text-dark">
+                                            {{ Str::limit($file->original_name, 50) }}
+                                        </div>
+                                        <small class="text-muted">
+                                            {{ $file->original_name }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td>{{ round(Storage::disk('s3')->size($file->path) / 1024, 2) }} KB</td>
+
+                            <td>
+                                <code class="small bg-light px-2 py-1 rounded">
+                                    {{ Str::upper(Str::afterLast($file->mime_type, '/')) }}
+                                </code>
+                            </td>
+
+                            <!-- 🔗 Link Column -->
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <a href="{{ $shareUrl }}"
+                                    target="_blank"
+                                    class="text-primary text-decoration-underline small">
+                                        Open
                                     </a>
-                                </td>
-                            </tr>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            onclick="copyToClipboard('{{ $shareUrl }}')"
+                                            title="Copy link">
+                                        Copy
+                                    </button>
+                                </div>
+                            </td>
+
+                            <!-- Actions -->
+                            <td class="text-center">
+                                <a href="{{ route('admin.files.download', $file) }}"
+                                class="btn btn-sm btn-outline-success border-2"
+                                title="Download {{ $file->original_name }}">
+                                    Download
+                                </a>
+                            </td>
+                        </tr>
                         @empty
-                            <tr>
-                                <td colspan="4" class="text-center py-6">
-                                    <i class="fas fa-folder-open fa-4x text-muted opacity-25 mb-4 d-block"></i>
-                                    <h6 class="text-muted">No files in this session</h6>
-                                </td>
-                            </tr>
+                        <tr>
+                            <td colspan="5" class="text-center py-6">
+                                <i class="fas fa-folder-open fa-4x text-muted opacity-25 mb-4 d-block"></i>
+                                <h6 class="text-muted">No files in this session</h6>
+                            </td>
+                        </tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -194,4 +219,13 @@
         background-color: #f8f9ff !important;
     }
 </style>
+
+<script>
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Shareable link copied!');
+        });
+    }
+</script>
+
 @endsection
